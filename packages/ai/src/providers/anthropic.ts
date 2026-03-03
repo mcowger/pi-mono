@@ -685,6 +685,22 @@ function convertMessages(
 	// Transform messages for cross-provider compatibility
 	const transformedMessages = transformMessages(messages, model, normalizeToolCallId);
 
+	// Find the index of the last assistant message that contains at least one toolCall block.
+	// We only add cache_control to the last tool_use block in that one message; applying it
+	// to every assistant message would exceed Anthropic's limit of 4 cache_control blocks.
+	const lastAssistantWithToolCallIndex = cacheControl
+		? transformedMessages.reduce<number>((found, msg, idx) => {
+				if (
+					msg.role === "assistant" &&
+					Array.isArray(msg.content) &&
+					msg.content.some((b) => b.type === "toolCall")
+				) {
+					return idx;
+				}
+				return found;
+			}, -1)
+		: -1;
+
 	for (let i = 0; i < transformedMessages.length; i++) {
 		const msg = transformedMessages[i];
 
@@ -769,7 +785,9 @@ function convertMessages(
 						id: block.id,
 						name: isOAuthToken ? toClaudeCodeName(block.name) : block.name,
 						input: block.arguments ?? {},
-						...(cacheControl && contentIndex === lastToolCallIndex ? { cache_control: cacheControl } : {}),
+						...(cacheControl && i === lastAssistantWithToolCallIndex && contentIndex === lastToolCallIndex
+							? { cache_control: cacheControl }
+							: {}),
 					});
 				}
 			}
