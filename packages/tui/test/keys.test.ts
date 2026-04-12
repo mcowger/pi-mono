@@ -4,7 +4,7 @@
 
 import assert from "node:assert";
 import { describe, it } from "node:test";
-import { decodeKittyPrintable, matchesKey, parseKey, setKittyProtocolActive } from "../src/keys.js";
+import { decodeKittyPrintable, Key, type KeyId, matchesKey, parseKey, setKittyProtocolActive } from "../src/keys.js";
 
 function withEnv(name: string, value: string | undefined, fn: () => void): void {
 	const previous = process.env[name];
@@ -460,9 +460,25 @@ describe("parseKey", () => {
 			setKittyProtocolActive(false);
 		});
 
-		it("should ignore Kitty CSI-u with unsupported modifiers", () => {
+		it("should parse Kitty CSI-u with super/cmd modifier (bit 8)", () => {
 			setKittyProtocolActive(true);
-			assert.strictEqual(parseKey("\x1b[99;9u"), undefined);
+			// modifier value 9 = 1-indexed, so bit 8 (super/cmd) + base offset 1
+			assert.strictEqual(parseKey("\x1b[99;9u"), "cmd+c");
+			setKittyProtocolActive(false);
+		});
+
+		it("should parse Kitty CSI-u with hyper modifier (all four)", () => {
+			setKittyProtocolActive(true);
+			// modifier 16 = 1-indexed: shift(1)+alt(2)+ctrl(4)+super(8)+1 = 16
+			// formatKeyNameWithModifiers outputs modifiers in bit-flag order
+			assert.strictEqual(parseKey("\x1b[116;16u"), "shift+ctrl+alt+cmd+t");
+			setKittyProtocolActive(false);
+		});
+
+		it("should return undefined for Kitty CSI-u with unsupported modifier bits above supported mask", () => {
+			setKittyProtocolActive(true);
+			// modifier value 17 = bit 16 (beyond shift/alt/ctrl/super mask) + 1
+			assert.strictEqual(parseKey("\x1b[99;17u"), undefined);
 			setKittyProtocolActive(false);
 		});
 	});
@@ -511,6 +527,87 @@ describe("parseKey", () => {
 
 		it("should parse double bracket pageUp", () => {
 			assert.strictEqual(parseKey("\x1b[[5~"), "pageUp");
+		});
+	});
+});
+
+describe("cmd/super/hyper modifier support", () => {
+	describe("parseKeyId", () => {
+		it("should parse cmd modifier", () => {
+			setKittyProtocolActive(true);
+			// Kitty CSI-u: 't' (codepoint 116), modifier 9 = super bit (8) + 1
+			assert.strictEqual(matchesKey("\x1b[116;9u", "cmd+t"), true);
+			assert.strictEqual(parseKey("\x1b[116;9u"), "cmd+t");
+			setKittyProtocolActive(false);
+		});
+
+		it("should treat meta as alias for cmd", () => {
+			setKittyProtocolActive(true);
+			// meta is a parse-time alias for cmd, not in KeyId type union
+			assert.strictEqual(matchesKey("\x1b[116;9u", "meta+t" as KeyId), true);
+			setKittyProtocolActive(false);
+		});
+
+		it("should treat super as alias for cmd", () => {
+			setKittyProtocolActive(true);
+			// super is a parse-time alias for cmd, not in KeyId type union
+			assert.strictEqual(matchesKey("\x1b[116;9u", "super+t" as KeyId), true);
+			setKittyProtocolActive(false);
+		});
+
+		it("should expand hyper to ctrl+shift+alt+cmd", () => {
+			setKittyProtocolActive(true);
+			// modifier 16 = shift(1)+alt(2)+ctrl(4)+super(8)+1
+			// hyper is a parse-time alias, not in KeyId type union
+			assert.strictEqual(matchesKey("\x1b[116;16u", "hyper+t" as KeyId), true);
+			assert.strictEqual(matchesKey("\x1b[116;16u", "ctrl+shift+alt+cmd+t"), true);
+			setKittyProtocolActive(false);
+		});
+
+		it("should not confuse ctrl+t with cmd+t", () => {
+			setKittyProtocolActive(true);
+			// ctrl+t: modifier 5 = ctrl(4)+1
+			assert.strictEqual(matchesKey("\x1b[116;5u", "cmd+t"), false);
+			assert.strictEqual(matchesKey("\x1b[116;5u", "ctrl+t"), true);
+			// cmd+t: modifier 9 = super(8)+1
+			assert.strictEqual(matchesKey("\x1b[116;9u", "ctrl+t"), false);
+			assert.strictEqual(matchesKey("\x1b[116;9u", "cmd+t"), true);
+			setKittyProtocolActive(false);
+		});
+
+		it("should not confuse ctrl+t with hyper+t", () => {
+			setKittyProtocolActive(true);
+			assert.strictEqual(matchesKey("\x1b[116;5u", "hyper+t" as KeyId), false);
+			assert.strictEqual(matchesKey("\x1b[116;16u", "ctrl+t"), false);
+			setKittyProtocolActive(false);
+		});
+	});
+
+	describe("modifyOtherKeys with super modifier", () => {
+		it("should match xterm modifyOtherKeys cmd+t", () => {
+			setKittyProtocolActive(false);
+			// modifyOtherKeys: modifier 9 = super(8)+1
+			assert.strictEqual(matchesKey("\x1b[27;9;116~", "cmd+t"), true);
+			assert.strictEqual(parseKey("\x1b[27;9;116~"), "cmd+t");
+			setKittyProtocolActive(false);
+		});
+	});
+
+	describe("decodeKittyPrintable with super modifier", () => {
+		it("should reject super-modified CSI-u from printable decoding", () => {
+			setKittyProtocolActive(true);
+			// cmd+t should not insert 't' as text
+			assert.strictEqual(decodeKittyPrintable("\x1b[116;9u"), undefined);
+			// hyper+t should not insert 't' as text
+			assert.strictEqual(decodeKittyPrintable("\x1b[116;16u"), undefined);
+			setKittyProtocolActive(false);
+		});
+	});
+
+	describe("Key helper", () => {
+		it("should produce correct key identifiers for cmd and hyper", () => {
+			assert.strictEqual(Key.cmd("t"), "cmd+t");
+			assert.strictEqual(Key.hyper("t"), "ctrl+shift+alt+cmd+t");
 		});
 	});
 });

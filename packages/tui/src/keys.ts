@@ -143,12 +143,17 @@ type BaseKey = Letter | Digit | SymbolKey | SpecialKey;
 /**
  * Union type of all valid key identifiers.
  * Provides autocomplete and catches typos at compile time.
+ *
+ * Modifiers: ctrl, shift, alt, cmd (aliases: meta, super).
+ * `hyper+key` is shorthand for `ctrl+shift+alt+cmd+key` (all four modifiers).
+ * On macOS, `cmd` corresponds to the Command key.
  */
 export type KeyId =
 	| BaseKey
 	| `ctrl+${BaseKey}`
 	| `shift+${BaseKey}`
 	| `alt+${BaseKey}`
+	| `cmd+${BaseKey}`
 	| `ctrl+shift+${BaseKey}`
 	| `shift+ctrl+${BaseKey}`
 	| `ctrl+alt+${BaseKey}`
@@ -160,7 +165,8 @@ export type KeyId =
 	| `shift+ctrl+alt+${BaseKey}`
 	| `shift+alt+ctrl+${BaseKey}`
 	| `alt+ctrl+shift+${BaseKey}`
-	| `alt+shift+ctrl+${BaseKey}`;
+	| `alt+shift+ctrl+${BaseKey}`
+	| `ctrl+shift+alt+cmd+${BaseKey}`;
 
 /**
  * Helper object for creating typed key identifiers with autocomplete.
@@ -241,6 +247,7 @@ export const Key = {
 	ctrl: <K extends BaseKey>(key: K): `ctrl+${K}` => `ctrl+${key}`,
 	shift: <K extends BaseKey>(key: K): `shift+${K}` => `shift+${key}`,
 	alt: <K extends BaseKey>(key: K): `alt+${K}` => `alt+${key}`,
+	cmd: <K extends BaseKey>(key: K): `cmd+${K}` => `cmd+${key}`,
 
 	// Combined modifiers
 	ctrlShift: <K extends BaseKey>(key: K): `ctrl+shift+${K}` => `ctrl+shift+${key}`,
@@ -252,6 +259,9 @@ export const Key = {
 
 	// Triple modifiers
 	ctrlShiftAlt: <K extends BaseKey>(key: K): `ctrl+shift+alt+${K}` => `ctrl+shift+alt+${key}`,
+
+	// All four modifiers (Hyper key)
+	hyper: <K extends BaseKey>(key: K): `ctrl+shift+alt+cmd+${K}` => `ctrl+shift+alt+cmd+${key}`,
 } as const;
 
 // =============================================================================
@@ -296,6 +306,7 @@ const MODIFIERS = {
 	shift: 1,
 	alt: 2,
 	ctrl: 4,
+	super: 8, // Also: meta, cmd (aliases). Bit 8 in Kitty keyboard protocol.
 } as const;
 
 const LOCK_MASK = 64 + 128; // Caps Lock + Num Lock
@@ -759,23 +770,29 @@ function matchesPrintableModifyOtherKeys(data: string, expectedKeycode: number, 
 function formatKeyNameWithModifiers(keyName: string, modifier: number): string | undefined {
 	const mods: string[] = [];
 	const effectiveMod = modifier & ~LOCK_MASK;
-	const supportedModifierMask = MODIFIERS.shift | MODIFIERS.ctrl | MODIFIERS.alt;
+	const supportedModifierMask = MODIFIERS.shift | MODIFIERS.ctrl | MODIFIERS.alt | MODIFIERS.super;
 	if ((effectiveMod & ~supportedModifierMask) !== 0) return undefined;
 	if (effectiveMod & MODIFIERS.shift) mods.push("shift");
 	if (effectiveMod & MODIFIERS.ctrl) mods.push("ctrl");
 	if (effectiveMod & MODIFIERS.alt) mods.push("alt");
+	if (effectiveMod & MODIFIERS.super) mods.push("cmd");
 	return mods.length > 0 ? `${mods.join("+")}+${keyName}` : keyName;
 }
 
-function parseKeyId(keyId: string): { key: string; ctrl: boolean; shift: boolean; alt: boolean } | null {
+function parseKeyId(
+	keyId: string,
+): { key: string; ctrl: boolean; shift: boolean; alt: boolean; super: boolean } | null {
 	const parts = keyId.toLowerCase().split("+");
 	const key = parts[parts.length - 1];
 	if (!key) return null;
+	// hyper is syntactic sugar for ctrl+shift+alt+cmd
+	const isHyper = parts.includes("hyper");
 	return {
 		key,
-		ctrl: parts.includes("ctrl"),
-		shift: parts.includes("shift"),
-		alt: parts.includes("alt"),
+		ctrl: parts.includes("ctrl") || isHyper,
+		shift: parts.includes("shift") || isHyper,
+		alt: parts.includes("alt") || isHyper,
+		super: parts.includes("cmd") || parts.includes("meta") || parts.includes("super") || isHyper,
 	};
 }
 
@@ -788,6 +805,8 @@ function parseKeyId(keyId: string): { key: string; ctrl: boolean; shift: boolean
  * - Ctrl combinations: "ctrl+c", "ctrl+z", etc.
  * - Shift combinations: "shift+tab", "shift+enter"
  * - Alt combinations: "alt+enter", "alt+backspace"
+ * - Cmd combinations: "cmd+t", "cmd+shift+p" (aliases: meta, super)
+ * - Hyper combinations: "hyper+t" (shorthand for ctrl+shift+alt+cmd+t)
  * - Combined modifiers: "shift+ctrl+p", "ctrl+alt+x"
  *
  * Use the Key helper for autocomplete: Key.ctrl("c"), Key.escape, Key.ctrlShift("p")
@@ -799,11 +818,12 @@ export function matchesKey(data: string, keyId: KeyId): boolean {
 	const parsed = parseKeyId(keyId);
 	if (!parsed) return false;
 
-	const { key, ctrl, shift, alt } = parsed;
+	const { key, ctrl, shift, alt, super: superMod } = parsed;
 	let modifier = 0;
 	if (shift) modifier |= MODIFIERS.shift;
 	if (alt) modifier |= MODIFIERS.alt;
 	if (ctrl) modifier |= MODIFIERS.ctrl;
+	if (superMod) modifier |= MODIFIERS.super;
 
 	switch (key) {
 		case "escape":
@@ -1334,10 +1354,10 @@ export function decodeKittyPrintable(data: string): string | undefined {
 	const modifier = Number.isFinite(modValue) ? modValue - 1 : 0;
 
 	// Only accept printable CSI-u input for plain or Shift-modified text keys.
-	// Reject unsupported modifier bits (e.g. Super/Meta) to avoid inserting
+	// Reject unsupported modifier bits (Ctrl, Alt, Super/Meta/Cmd) to avoid inserting
 	// characters from modifier-only terminal events.
 	if ((modifier & ~KITTY_PRINTABLE_ALLOWED_MODIFIERS) !== 0) return undefined;
-	if (modifier & (MODIFIERS.alt | MODIFIERS.ctrl)) return undefined;
+	if (modifier & (MODIFIERS.alt | MODIFIERS.ctrl | MODIFIERS.super)) return undefined;
 
 	// Prefer the shifted keycode when Shift is held.
 	let effectiveCodepoint = codepoint;
