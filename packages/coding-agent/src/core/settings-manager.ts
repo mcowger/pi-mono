@@ -61,7 +61,6 @@ export type PackageSource =
 	  };
 
 export interface Settings {
-	lastChangelogVersion?: string;
 	defaultProvider?: string;
 	defaultModel?: string;
 	defaultThinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
@@ -132,7 +131,7 @@ function deepMergeSettings(base: Settings, overrides: Settings): Settings {
 export type SettingsScope = "global" | "project";
 
 export interface SettingsStorage {
-	withLock(scope: SettingsScope, fn: (current: string | undefined) => string | undefined): void;
+	withLock(scope: SettingsScope, fn: (current: string | undefined) => string | undefined, pathOverride?: string): void;
 }
 
 export interface SettingsError {
@@ -144,9 +143,9 @@ export class FileSettingsStorage implements SettingsStorage {
 	private globalSettingsPath: string;
 	private projectSettingsPath: string;
 
-	constructor(cwd: string = process.cwd(), agentDir: string = getAgentDir()) {
-		this.globalSettingsPath = join(agentDir, "settings.json");
-		this.projectSettingsPath = join(cwd, CONFIG_DIR_NAME, "settings.json");
+	constructor(cwd: string = process.cwd(), agentDir: string = getAgentDir(), fileName: string = "settings.json") {
+		this.globalSettingsPath = join(agentDir, fileName);
+		this.projectSettingsPath = join(cwd, CONFIG_DIR_NAME, fileName);
 	}
 
 	private acquireLockSyncWithRetry(path: string): () => void {
@@ -176,8 +175,13 @@ export class FileSettingsStorage implements SettingsStorage {
 		throw (lastError as Error) ?? new Error("Failed to acquire settings lock");
 	}
 
-	withLock(scope: SettingsScope, fn: (current: string | undefined) => string | undefined): void {
-		const path = scope === "global" ? this.globalSettingsPath : this.projectSettingsPath;
+	withLock(
+		scope: SettingsScope,
+		fn: (current: string | undefined) => string | undefined,
+		pathOverride?: string,
+	): void {
+		const basePath = scope === "global" ? this.globalSettingsPath : this.projectSettingsPath;
+		const path = pathOverride ?? basePath;
 		const dir = dirname(path);
 
 		let release: (() => void) | undefined;
@@ -521,16 +525,6 @@ export class SettingsManager {
 		const drained = [...this.errors];
 		this.errors = [];
 		return drained;
-	}
-
-	getLastChangelogVersion(): string | undefined {
-		return this.settings.lastChangelogVersion;
-	}
-
-	setLastChangelogVersion(version: string): void {
-		this.globalSettings.lastChangelogVersion = version;
-		this.markModified("lastChangelogVersion");
-		this.save();
 	}
 
 	getSessionDir(): string | undefined {

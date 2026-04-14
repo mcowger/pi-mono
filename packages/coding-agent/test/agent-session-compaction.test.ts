@@ -18,6 +18,7 @@ import { AuthStorage } from "../src/core/auth-storage.js";
 import { ModelRegistry } from "../src/core/model-registry.js";
 import { SessionManager } from "../src/core/session-manager.js";
 import { SettingsManager } from "../src/core/settings-manager.js";
+import { StateManager } from "../src/core/state-manager.js";
 import { codingTools } from "../src/core/tools/index.js";
 import { API_KEY, createTestResourceLoader } from "./utilities.js";
 
@@ -67,6 +68,7 @@ describe.skipIf(!API_KEY)("AgentSession compaction e2e", () => {
 			agent,
 			sessionManager,
 			settingsManager,
+			stateManager: StateManager.inMemory(),
 			cwd: tempDir,
 			modelRegistry,
 			resourceLoader: createTestResourceLoader(),

@@ -9,6 +9,7 @@ import { DefaultResourceLoader, type DefaultResourceLoaderOptions, type Resource
 import { type CreateAgentSessionResult, createAgentSession } from "./sdk.js";
 import type { SessionManager } from "./session-manager.js";
 import { SettingsManager } from "./settings-manager.js";
+import { StateManager } from "./state-manager.js";
 import type { Tool } from "./tools/index.js";
 
 /**
@@ -35,6 +36,7 @@ export interface CreateAgentSessionServicesOptions {
 	agentDir?: string;
 	authStorage?: AuthStorage;
 	settingsManager?: SettingsManager;
+	stateManager?: StateManager;
 	modelRegistry?: ModelRegistry;
 	extensionFlagValues?: Map<string, boolean | string>;
 	resourceLoaderOptions?: Omit<DefaultResourceLoaderOptions, "cwd" | "agentDir" | "settingsManager">;
@@ -68,6 +70,7 @@ export interface AgentSessionServices {
 	agentDir: string;
 	authStorage: AuthStorage;
 	settingsManager: SettingsManager;
+	stateManager: StateManager;
 	modelRegistry: ModelRegistry;
 	resourceLoader: ResourceLoader;
 	diagnostics: AgentSessionRuntimeDiagnostic[];
@@ -133,6 +136,7 @@ export async function createAgentSessionServices(
 	const agentDir = options.agentDir ?? getAgentDir();
 	const authStorage = options.authStorage ?? AuthStorage.create(join(agentDir, "auth.json"));
 	const settingsManager = options.settingsManager ?? SettingsManager.create(cwd, agentDir);
+	const stateManager = options.stateManager ?? StateManager.create(cwd, agentDir);
 	const modelRegistry = options.modelRegistry ?? ModelRegistry.create(authStorage, join(agentDir, "models.json"));
 	const resourceLoader = new DefaultResourceLoader({
 		...(options.resourceLoaderOptions ?? {}),
@@ -163,6 +167,7 @@ export async function createAgentSessionServices(
 		agentDir,
 		authStorage,
 		settingsManager,
+		stateManager,
 		modelRegistry,
 		resourceLoader,
 		diagnostics,
@@ -184,6 +189,7 @@ export async function createAgentSessionFromServices(
 		agentDir: options.services.agentDir,
 		authStorage: options.services.authStorage,
 		settingsManager: options.services.settingsManager,
+		stateManager: options.services.stateManager,
 		modelRegistry: options.services.modelRegistry,
 		resourceLoader: options.services.resourceLoader,
 		sessionManager: options.sessionManager,

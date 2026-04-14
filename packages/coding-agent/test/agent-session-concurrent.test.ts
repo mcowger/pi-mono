@@ -21,6 +21,7 @@ import { AuthStorage } from "../src/core/auth-storage.js";
 import { ModelRegistry } from "../src/core/model-registry.js";
 import { SessionManager } from "../src/core/session-manager.js";
 import { SettingsManager } from "../src/core/settings-manager.js";
+import { StateManager } from "../src/core/state-manager.js";
 import { createTestExtensionsResult, createTestResourceLoader } from "./utilities.js";
 
 // Mock stream that mimics AssistantMessageEventStream
@@ -118,6 +119,7 @@ describe("AgentSession concurrent prompt guard", () => {
 			agent,
 			sessionManager,
 			settingsManager,
+			stateManager: StateManager.inMemory(),
 			cwd: tempDir,
 			modelRegistry,
 			resourceLoader: createTestResourceLoader(),
@@ -253,6 +255,7 @@ describe("AgentSession concurrent prompt guard", () => {
 			agent,
 			sessionManager,
 			settingsManager,
+			stateManager: StateManager.inMemory(),
 			cwd: tempDir,
 			modelRegistry,
 			resourceLoader: createTestResourceLoader({ extensionsResult }),
@@ -320,6 +323,7 @@ describe("AgentSession concurrent prompt guard", () => {
 			agent,
 			sessionManager,
 			settingsManager,
+			stateManager: StateManager.inMemory(),
 			cwd: tempDir,
 			modelRegistry,
 			resourceLoader: createTestResourceLoader(),
@@ -426,6 +430,7 @@ describe("AgentSession concurrent prompt guard", () => {
 			agent,
 			sessionManager,
 			settingsManager,
+			stateManager: StateManager.inMemory(),
 			cwd: tempDir,
 			modelRegistry,
 			resourceLoader: createTestResourceLoader(),
@@ -563,6 +568,7 @@ describe("AgentSession concurrent prompt guard", () => {
 			agent,
 			sessionManager,
 			settingsManager,
+			stateManager: StateManager.inMemory(),
 			cwd: tempDir,
 			modelRegistry,
 			resourceLoader: createTestResourceLoader(),

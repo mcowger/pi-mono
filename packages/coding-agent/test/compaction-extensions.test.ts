@@ -21,6 +21,7 @@ import { ModelRegistry } from "../src/core/model-registry.js";
 import { SessionManager } from "../src/core/session-manager.js";
 import { SettingsManager } from "../src/core/settings-manager.js";
 import { createSyntheticSourceInfo } from "../src/core/source-info.js";
+import { StateManager } from "../src/core/state-manager.js";
 import { codingTools } from "../src/core/tools/index.js";
 import { createTestResourceLoader } from "./utilities.js";
 
@@ -111,6 +112,7 @@ describe.skipIf(!API_KEY)("Compaction extensions", () => {
 			agent,
 			sessionManager,
 			settingsManager,
+			stateManager: StateManager.inMemory(),
 			cwd: tempDir,
 			modelRegistry,
 			resourceLoader,

@@ -13,6 +13,7 @@ import type { ResourceLoader } from "./resource-loader.js";
 import { DefaultResourceLoader } from "./resource-loader.js";
 import { getDefaultSessionDir, SessionManager } from "./session-manager.js";
 import { SettingsManager } from "./settings-manager.js";
+import { StateManager } from "./state-manager.js";
 import { time } from "./timings.js";
 import {
 	allTools,
@@ -70,6 +71,8 @@ export interface CreateAgentSessionOptions {
 
 	/** Settings manager. Default: SettingsManager.create(cwd, agentDir) */
 	settingsManager?: SettingsManager;
+	/** State manager. Default: StateManager.create(cwd, agentDir) */
+	stateManager?: StateManager;
 	/** Session start event metadata for extension runtime startup. */
 	sessionStartEvent?: SessionStartEvent;
 }
@@ -178,6 +181,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 	const modelRegistry = options.modelRegistry ?? ModelRegistry.create(authStorage, modelsPath);
 
 	const settingsManager = options.settingsManager ?? SettingsManager.create(cwd, agentDir);
+	const stateManager = options.stateManager ?? StateManager.create(cwd, agentDir);
 	const sessionManager = options.sessionManager ?? SessionManager.create(cwd, getDefaultSessionDir(cwd, agentDir));
 
 	if (!resourceLoader) {
@@ -210,9 +214,9 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		const result = await findInitialModel({
 			scopedModels: [],
 			isContinuing: hasExistingSession,
-			defaultProvider: settingsManager.getDefaultProvider(),
-			defaultModelId: settingsManager.getDefaultModel(),
-			defaultThinkingLevel: settingsManager.getDefaultThinkingLevel(),
+			defaultProvider: stateManager.getLastProvider() ?? settingsManager.getDefaultProvider(),
+			defaultModelId: stateManager.getLastModelId() ?? settingsManager.getDefaultModel(),
+			defaultThinkingLevel: stateManager.getLastThinkingLevel() ?? settingsManager.getDefaultThinkingLevel(),
 			modelRegistry,
 		});
 		model = result.model;
@@ -229,12 +233,13 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 	if (thinkingLevel === undefined && hasExistingSession) {
 		thinkingLevel = hasThinkingEntry
 			? (existingSession.thinkingLevel as ThinkingLevel)
-			: (settingsManager.getDefaultThinkingLevel() ?? DEFAULT_THINKING_LEVEL);
+			: (stateManager.getLastThinkingLevel() ?? settingsManager.getDefaultThinkingLevel() ?? DEFAULT_THINKING_LEVEL);
 	}
 
 	// Fall back to settings default
 	if (thinkingLevel === undefined) {
-		thinkingLevel = settingsManager.getDefaultThinkingLevel() ?? DEFAULT_THINKING_LEVEL;
+		thinkingLevel =
+			stateManager.getLastThinkingLevel() ?? settingsManager.getDefaultThinkingLevel() ?? DEFAULT_THINKING_LEVEL;
 	}
 
 	// Clamp to model capabilities
@@ -345,6 +350,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		agent,
 		sessionManager,
 		settingsManager,
+		stateManager,
 		cwd,
 		scopedModels: options.scopedModels,
 		resourceLoader,

@@ -11,6 +11,7 @@ import {
 	type ResourceLoader,
 	SessionManager,
 	type Skill,
+	StateManager,
 } from "@mariozechner/pi-coding-agent";
 import { existsSync, readFileSync } from "fs";
 import { mkdir, writeFile } from "fs/promises";
@@ -425,6 +426,7 @@ function createRunner(sandboxConfig: SandboxConfig, channelId: string, channelDi
 	const contextFile = join(channelDir, "context.jsonl");
 	const sessionManager = SessionManager.open(contextFile, channelDir);
 	const settingsManager = createMomSettingsManager(join(channelDir, ".."));
+	const stateManager = StateManager.inMemory();
 
 	// Create AuthStorage and ModelRegistry
 	// Auth stored outside workspace so agent can't access it
@@ -469,6 +471,7 @@ function createRunner(sandboxConfig: SandboxConfig, channelId: string, channelDi
 		agent,
 		sessionManager,
 		settingsManager,
+		stateManager,
 		cwd: process.cwd(),
 		modelRegistry,
 		resourceLoader,

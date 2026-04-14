@@ -18,6 +18,7 @@ import { AgentSession } from "../src/core/agent-session.js";
 import { ModelRegistry } from "../src/core/model-registry.js";
 import { SessionManager } from "../src/core/session-manager.js";
 import { SettingsManager } from "../src/core/settings-manager.js";
+import { StateManager } from "../src/core/state-manager.js";
 import { codingTools } from "../src/core/tools/index.js";
 import {
 	API_KEY,
@@ -87,6 +88,7 @@ describe.skipIf(!HAS_ANTIGRAVITY_AUTH)("Compaction with thinking models (Antigra
 			agent,
 			sessionManager,
 			settingsManager,
+			stateManager: StateManager.inMemory(),
 			cwd: tempDir,
 			modelRegistry,
 			resourceLoader: createTestResourceLoader(),
@@ -183,6 +185,7 @@ describe.skipIf(!HAS_ANTHROPIC_AUTH)("Compaction with thinking models (Anthropic
 			agent,
 			sessionManager,
 			settingsManager,
+			stateManager: StateManager.inMemory(),
 			cwd: tempDir,
 			modelRegistry,
 			resourceLoader: createTestResourceLoader(),

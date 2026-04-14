@@ -17,6 +17,7 @@ import { ModelRegistry } from "../src/core/model-registry.js";
 import type { ResourceLoader } from "../src/core/resource-loader.js";
 import { SessionManager } from "../src/core/session-manager.js";
 import { SettingsManager } from "../src/core/settings-manager.js";
+import { StateManager } from "../src/core/state-manager.js";
 import { codingTools } from "../src/core/tools/index.js";
 
 /**
@@ -248,6 +249,7 @@ export function createTestSession(options: TestSessionOptions = {}): TestSession
 
 	const sessionManager = options.inMemory ? SessionManager.inMemory() : SessionManager.create(tempDir);
 	const settingsManager = SettingsManager.create(tempDir, tempDir);
+	const stateManager = StateManager.inMemory();
 
 	if (options.settingsOverrides) {
 		settingsManager.applyOverrides(options.settingsOverrides);
@@ -260,6 +262,7 @@ export function createTestSession(options: TestSessionOptions = {}): TestSession
 		agent,
 		sessionManager,
 		settingsManager,
+		stateManager,
 		cwd: tempDir,
 		modelRegistry,
 		resourceLoader: createTestResourceLoader(),

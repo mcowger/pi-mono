@@ -1,3 +1,4 @@
+import { StateManager } from "../../src/core/state-manager.js";
 /**
  * Local test harness for the new coding-agent test suite.
  */
@@ -69,6 +70,7 @@ export interface Harness {
 	session: AgentSession;
 	sessionManager: SessionManager;
 	settingsManager: SettingsManager;
+	stateManager: StateManager;
 	authStorage: AuthStorage;
 	faux: FauxProviderRegistration;
 	models: [Model<string>, ...Model<string>[]];
@@ -102,6 +104,7 @@ export async function createHarness(options: HarnessOptions = {}): Promise<Harne
 
 	const sessionManager = SessionManager.inMemory();
 	const settingsManager = SettingsManager.inMemory(options.settings);
+	const stateManager = StateManager.inMemory();
 
 	const authStorage = AuthStorage.inMemory();
 	if (withConfiguredAuth) {
@@ -158,6 +161,7 @@ export async function createHarness(options: HarnessOptions = {}): Promise<Harne
 		agent,
 		sessionManager,
 		settingsManager,
+		stateManager,
 		cwd: tempDir,
 		modelRegistry,
 		resourceLoader,
@@ -174,6 +178,7 @@ export async function createHarness(options: HarnessOptions = {}): Promise<Harne
 		session,
 		sessionManager,
 		settingsManager,
+		stateManager,
 		authStorage,
 		faux: fauxProvider,
 		models: fauxProvider.models,

@@ -1,3 +1,4 @@
+import { StateManager } from "../src/core/state-manager.js";
 /**
  * Test harness for AgentSession runtime testing.
  *
@@ -343,6 +344,7 @@ export interface Harness {
 	agent: Agent;
 	sessionManager: SessionManager;
 	settingsManager: SettingsManager;
+	stateManager: StateManager;
 	/** Faux stream function state (call count, captured contexts). */
 	faux: FauxStreamFnState;
 	/** All events emitted by the session, in order. */
@@ -383,6 +385,7 @@ function createHarnessWithResourceLoader(
 
 	const sessionManager = SessionManager.inMemory();
 	const settingsManager = SettingsManager.create(tempDir, tempDir);
+	const stateManager = StateManager.inMemory();
 
 	if (options.settings) {
 		settingsManager.applyOverrides(options.settings);
@@ -396,6 +399,7 @@ function createHarnessWithResourceLoader(
 		agent,
 		sessionManager,
 		settingsManager,
+		stateManager,
 		cwd: tempDir,
 		modelRegistry,
 		resourceLoader,
@@ -419,6 +423,7 @@ function createHarnessWithResourceLoader(
 		agent,
 		sessionManager,
 		settingsManager,
+		stateManager,
 		faux: fauxState,
 		events,
 		eventsOfType<T extends AgentSessionEvent["type"]>(type: T) {

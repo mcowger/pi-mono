@@ -6,6 +6,7 @@ import { AuthStorage } from "../src/core/auth-storage.js";
 import { ModelRegistry } from "../src/core/model-registry.js";
 import { SessionManager } from "../src/core/session-manager.js";
 import { SettingsManager } from "../src/core/settings-manager.js";
+import { StateManager } from "../src/core/state-manager.js";
 import { createTestResourceLoader } from "./utilities.js";
 
 const reasoningModel = getModel("anthropic", "claude-sonnet-4-5")!;
@@ -36,6 +37,7 @@ function createSession({
 		}),
 		sessionManager,
 		settingsManager,
+		stateManager: StateManager.inMemory(),
 		cwd: process.cwd(),
 		modelRegistry: ModelRegistry.inMemory(authStorage),
 		resourceLoader: createTestResourceLoader(),

@@ -4,7 +4,7 @@
  * Override settings using SettingsManager.
  */
 
-import { createAgentSession, SessionManager, SettingsManager } from "@mariozechner/pi-coding-agent";
+import { createAgentSession, SessionManager, SettingsManager, StateManager } from "@mariozechner/pi-coding-agent";
 
 // Load current settings (merged global + project)
 const settingsManagerFromDisk = SettingsManager.create();
@@ -26,6 +26,13 @@ console.log("Session created with custom settings");
 
 // Setters update memory immediately and queue persistence writes.
 // Call flush() when you need a durability boundary.
+// State changes (last used model, thinking level) go to stateManager:
+const stateManager = StateManager.create();
+stateManager.setLastThinkingLevel("low");
+stateManager.setLastProviderAndModel("anthropic", "claude-sonnet-4-5");
+await stateManager.flush();
+
+// Settings defaults (fallbacks when no state exists) go to settingsManager:
 settingsManager.setDefaultThinkingLevel("low");
 await settingsManager.flush();
 
